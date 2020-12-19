@@ -1,0 +1,276 @@
+---
+title: "BST222_Project1"
+author: "Keith Mitchell"
+date: "10/8/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+```{r}
+library("survival")
+```
+
+
+
+```{r}
+###################################################################### 
+# simulation if cox PH model is assumed, with some continuous covariates; 
+# baseline event time is assumed to follow Weibull/exponential distribution
+# indepedent (uniform) censoring and Right censoring
+###################################################################### 
+library(MASS)
+
+sim_cox<- function(N,lambda0, beta, censor.right)
+{
+  # N = Total sample size 
+  # beta = PH coefficients
+  # lambda0 = rate parameter of the exponential distribution for baseline
+ 
+  # randomization to treatment or control  
+  A <- sample(x=c(0, 1), size=N, replace=TRUE, prob=c(0.5, 0.5))
+  
+  # generate continuous covariates, mutually indepedent
+  X = mvrnorm(N,mu=c(0,0),Sigma=matrix(c(1,0,0,1),2,2))
+  X1=X[,1]
+  X2=X[,2]
+  
+  # generate underlying event time
+  T <- rweibull(n=N, shape=1, scale = lambda0*exp(beta[1]*A+beta[2]*X1+beta[3]*X2))
+  #mean(X)
+  #rexp(n=N, rate=lambda0*exp(beta*A))
+
+  # censoring times
+  ctime = runif(N, min=0, max=censor.right)
+   
+  # follow-up times and event indicators
+  time <- pmin(T, ctime, censor.right)
+  censor <- as.numeric(T>ctime | T>censor.right)
+  # data set
+  data.frame(id=1:N,
+             group=A,
+             x1=X1,
+             x2=X2,
+             time=time,
+             censor=censor)
+}
+mydata=sim_cox(N=1000, lambda0=8, beta=c(0.8,0.5,0.2), censor.right=16)
+#write.csv(mydata,file="/Users/xinerzhou/Dropbox/STABST222 Survival Analysis/SASUniversityEdition/myfolders/Lab4/mydata.csv")
+
+mydata
+```
+
+
+```{r}
+###################################################################### 
+# simulation if cox PH model is assumed, with some continuous covariates; 
+# baseline event time is assumed to follow Weibull/exponential distribution
+# indepedent (uniform) censoring and Right censoring
+###################################################################### 
+library(MASS)
+
+sim_cox<- function(N,lambda0, beta, censor.right)
+{
+  # N = Total sample size 
+  # beta = PH coefficients
+  # lambda0 = rate parameter of the exponential distribution for baseline
+ 
+  # randomization to treatment or control  
+  #age <- sample(x=c(0, 1), size=N, replace=TRUE, prob=c(0.5, 0.5))
+  
+  # generate continuous covariates, mutually indepedent
+  #X = mvrnorm(N,mu=c(0,0),Sigma=matrix(c(1,0,0,1),2,2))
+  #X1=X[,1]
+  #X2=X[,2]
+  
+  #n_13g=rbinom(N,1,288/N)
+  #n_4g=rbinom(N,1,206/N)
+  #tnm_2g=rbinom(N,1,474/N)
+  #tnm_3g=rbinom(N,1,95/N)
+  #tnm_4g=rbinom(N,1,24/N)
+  log_erg=log(rgamma(N, shape = 11.5))
+  necrosisg=rbinom(N,1,109/N)
+  
+  
+  n_list = c(rep('n_13g', 288), rep('n_4g',206), rep('other',N-288-206))
+  tnm_list = c(rep('tnm_2g', 474), rep('tnm_3g',95), rep('tnm_4g',24), rep('other', N-474-95-24))
+  n_samp = sample(n_list, N, replace=T)
+  tnm_samp = sample(tnm_list, N, replace=T)
+  length(n_samp)
+  print(table(n_samp))
+  print(table(tnm_samp))
+
+    
+  n_13g = c() 
+  n_4g = c()
+  tnm_2g = c()
+  tnm_3g = c()
+  tnm_4g = c()
+  for (item in n_samp){
+    if (item == 'n_13g'){
+      n_13g = c(n_13g, 1)
+      n_4g = c(n_4g, 0)
+    }
+    else if (item == 'n_4g'){
+      n_13g = c(n_13g, 0)
+      n_4g = c(n_4g, 1)
+    }
+    else {
+      n_13g = c(n_13g, 0)
+      n_4g = c(n_4g, 0)
+    }
+  }
+  
+  for (item in tnm_samp){
+    if (item == 'tnm_2g'){
+      tnm_2g = c(tnm_2g, 1)
+      tnm_3g = c(tnm_3g, 0)
+      tnm_4g = c(tnm_4g, 0)
+    }
+    else if (item == 'tnm_3g'){
+      tnm_2g = c(tnm_2g, 0)
+      tnm_3g = c(tnm_3g, 1)
+      tnm_4g = c(tnm_4g, 0)
+    }
+    else if (item == 'tnm_4g'){
+      tnm_2g = c(tnm_2g, 0)
+      tnm_3g = c(tnm_3g, 0)
+      tnm_4g = c(tnm_4g, 1)
+    }
+    else{
+      tnm_2g = c(tnm_2g, 0)
+      tnm_3g = c(tnm_3g, 0)
+      tnm_4g = c(tnm_4g, 0)
+    }
+    
+  }
+  
+  # generate underlying event time
+  T <- rweibull(n=N, shape=1, scale =lambda0*exp(beta[1]*n_13g+beta[2]*n_4g+beta[3]* tnm_2g+beta[4]*tnm_3g+beta[5]*tnm_4g+beta[6]*log_erg+beta[7]*necrosisg))
+  hi <- exp(beta[1]*n_13g+beta[2]*n_4g+beta[3]*tnm_2g+beta[4]*tnm_3g+beta[5]*tnm_4g+beta[6]*log_erg+beta[7]*necrosisg)
+  
+    #mean(X)
+  #rexp(n=N, rate=lambda0*exp(beta*A))
+
+  # censoring times
+  ctime = runif(N, min=0, max=censor.right)
+
+  # follow-up times and event indicators
+  time <- pmin(T, ctime, censor.right)
+
+  
+  censor <- as.numeric(T>ctime | T>censor.right)
+  # data set
+  data.frame(haz_ind=hi,
+             id=1:N,
+             n_13=n_13g,
+             n_4=n_4g,
+             tnm_2=tnm_2g,
+             tnm_3=tnm_3g,
+             tnm_4=tnm_4g,
+             log_er=log_erg,
+             necrosis=necrosisg,
+             time=time,
+             censor=censor)
+}
+
+
+n_13_B = 0.47
+n_4_B = 1.17
+tnm_2_B = 0.41 
+tnm_3_B = 1.14
+tnm_4_B = 2.06
+log_er_B = -.21
+necrosis_B = 0.64
+
+
+mydata=sim_cox(N=859, lambda0=30, beta=c(n_13_B, n_4_B, tnm_2_B, tnm_3_B, tnm_4_B, log_er_B, necrosis_B), censor.right=10)
+#write.csv(mydata,file="/Users/xinerzhou/Dropbox/STABST222 Survival Analysis/SASUniversityEdition/myfolders/Lab4/mydata.csv")
+
+```
+
+
+```{r}
+mydata
+#summary(mydata$censor)
+length(which(mydata$haz_ind<1))/859
+length(which(mydata$haz_ind>=1 & mydata$haz_ind<2))/859
+length(which(mydata$haz_ind>=2 & mydata$haz_ind<3))/859
+length(which(mydata$haz_ind>=3))/859
+
+
+mydata$haz_cat=5
+
+mydata$haz_cat[which(mydata$haz_ind<1)] = 0
+mydata$haz_cat[which(mydata$haz_ind>=1 & mydata$haz_ind<2)] = 1
+mydata$haz_cat[which(mydata$haz_ind>=2 & mydata$haz_ind<3)] = 2
+mydata$haz_cat[which(mydata$haz_ind>=3)] = 3
+
+head(mydata)
+summary(mydata)
+
+write.csv(mydata, file='~/Desktop/SASUniversityEdition/myfolders/Project2/simulated_data2.csv')
+```
+
+```{r}
+mydata = read.csv('~/Desktop/SASUniversityEdition/myfolders/Project2/simulated_data2.csv')
+```
+
+
+```{r}
+library(reshape2)
+library(ggplot2)
+keeps = c('haz_ind', 'time', 'log_er')
+
+df.m <- melt(mydata[ , (names(mydata) %in% keeps)])
+
+p <- ggplot(data = df.m, aes(x=variable, y=value)) + 
+             geom_boxplot()
+p + facet_wrap( ~ variable, scales="free")
+
+```
+
+
+
+
+
+# Finding a good distribution for ER values.
+```{r}
+log_er=rgamma(1000, shape = 11.5)
+boxplot(log_er)
+length(which(log_er>10))/1000
+length(which(log_er<4))/1000
+
+log_er=log(log_er)
+
+boxplot(log_er)
+length(which(log_er>10))/1000
+length(which(log_er<3))/1000
+
+582/859
+```
+
+
+
+```{r}
+#library(stats)
+#list dbinom(4, size=12, prob=0.2)
+log_er=rgamma(1000, shape = 11.5)^2
+boxplot(log_er)
+
+boxplot(log(log_er))
+
+length(which(log_er<10))/1000
+582/859
+length(which(log_er>=10))/1000
+```
+
+```{r}
+
+```

@@ -1,0 +1,34 @@
+
+* logrank test for two or more groups;
+proc import datafile="/folders/myfolders/Project2/simulated_data2.csv" 
+out=sim dbms=csv replace;
+datarow=2;
+getnames=yes;
+guessingrows=100;
+run;
+
+
+
+* Global test; 
+proc lifetest data=sim plots=survival;*(atrisk=0 to 2500 by 500);  
+time time*censor(1); 
+strata haz_cat/test=(logrank TARONE PETO MODPETO  
+FLEMING(0,1)    ); 
+run;
+
+
+proc phreg data = sim plots=survival;
+  class haz_cat;
+  model time*censor(1)=haz_cat;
+run;
+
+
+
+proc phreg data = sim;
+  class haz_cat;
+  model time*censor(1)= n_13 n_4 tnm_2 tnm_3 tnm_4 log_er necrosis / rl selection=stepwise slentry=0.99
+                           slstay=0.99 details;
+  *sex: test z3 = z4 = z3xz4 = 0;
+  *ods output  FitStatistics = sexaic_t6;
+  *ods output TestStmts = sexstat_t6;
+run;
